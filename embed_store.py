@@ -4,7 +4,7 @@ import numpy as np
 import os
 import pickle
 from typing import List
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 
 class EmbedStore:
     def __init__(self, model_name='all-mpnet-base-v2', index_path='faiss_index.bin', meta_path='chunks_meta.pkl'):
