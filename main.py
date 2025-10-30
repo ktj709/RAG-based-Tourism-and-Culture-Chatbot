@@ -40,25 +40,45 @@ def main():
     docs = []
 
     for city in cities:
+        print(f"\n📄 Processing {city['name']} ...")
         if city["wiki"]:
-            docs.append(fetch_wikipedia_page(city["wiki"]))
+            try:
+                docs.append(fetch_wikipedia_page(city["wiki"]))
+                print("✅ Wikipedia content fetched.")
+            except Exception as e:
+                print(f"⚠️ Wiki fetch failed: {e}")
 
         if city["pdf"]:
             if isinstance(city["pdf"], list):
                 for pdf_file in city["pdf"]:
                     if os.path.exists(pdf_file):
                         docs.extend(load_pdf(pdf_file, source=f"{city['name']} Tourism PDF"))
+                        print(f"✅ Loaded PDF: {pdf_file}")
+                    else:
+                        print(f"⚠️ Missing PDF: {pdf_file}")
             else:
                 if os.path.exists(city["pdf"]):
                     docs.extend(load_pdf(city["pdf"], source=f"{city['name']} Tourism PDF"))
+                else:
+                    print(f"⚠️ Missing PDF: {city['pdf']}")
 
         if city["text_url"]:
             docs.append(fetch_plain_text_url(city["text_url"]))
 
+    if not docs:
+        print("❌ No documents found. Please ensure PDFs or URLs exist.")
+        return
+
+    print(f"\n📚 Total documents collected: {len(docs)}")
+
     chunks = chunk_documents(docs)
+    print(f"✂️ Split into {len(chunks)} chunks")
 
     store = EmbedStore()
     store.build_index(chunks)
+    store.save()   # <-- 🆕 Added this line!
+
+    print("\n✅ FAISS index and metadata saved successfully!")
 
     while True:
         query = input("\nAsk your tourism question (or type 'exit' to quit): ")
