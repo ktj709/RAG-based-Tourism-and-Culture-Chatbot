@@ -1,1 +1,11 @@
+// ...existing code...
 .env
+__pycache__/
+*.pyc
+*.pyo
+faiss_index.bin
+chunks_meta.pkl
+*.pdf
+venv/
+env/
+.vscode/
