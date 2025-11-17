@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 import pdfplumber
 from typing import List
 
