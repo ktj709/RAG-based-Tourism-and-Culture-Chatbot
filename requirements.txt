@@ -1,7 +1,8 @@
 fastapi
 uvicorn
-langchain
-langchain-community
+langchain==0.2.11
+langchain-core==0.2.10
+langchain-community==0.2.9
 langchain-google-genai
 faiss-cpu
 sentence-transformers
@@ -12,4 +13,3 @@ pdfplumber
 google-generativeai
 python-dotenv
 pydantic
-
