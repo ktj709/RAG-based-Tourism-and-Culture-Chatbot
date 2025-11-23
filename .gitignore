@@ -1,11 +1,27 @@
-// ...existing code...
+# Environment variables
 .env
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
+
+# Generated files
 faiss_index.bin
 chunks_meta.pkl
+
+# Data files
 *.pdf
+
+# Virtual environments
 venv/
 env/
+.venv/
+
+# IDE
 .vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

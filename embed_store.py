@@ -1,55 +1,81 @@
-from sentence_transformers import SentenceTransformer
-import faiss
-import numpy as np
 import os
 import pickle
 from typing import List
 from langchain_core.documents import Document
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 class EmbedStore:
-    def __init__(self, model_name='all-mpnet-base-v2', index_path='faiss_index.bin', meta_path='chunks_meta.pkl'):
-        self.model = SentenceTransformer(model_name)
-        self.index = None
+    """Lightweight embedding store using Google's Embedding API instead of local models"""
+    
+    def __init__(self, meta_path='chunks_meta.pkl'):
         self.chunks: List[Document] = []
-        self.index_path = index_path
         self.meta_path = meta_path
+        self.embeddings_cache = {}  # Cache embeddings to reduce API calls
 
     def build_index(self, chunks: List[Document], rebuild: bool = True):
-        texts = [c.page_content for c in chunks]
-        embeddings = self.model.encode(texts, convert_to_tensor=False, show_progress_bar=True)
-        embeddings = np.array(embeddings, dtype='float32')
-        d = embeddings.shape[1]
-        if rebuild or self.index is None:
-            self.index = faiss.IndexFlatL2(d)
-        self.index.add(embeddings)
+        """Store chunks without building heavy FAISS index"""
         self.chunks = chunks
+        print(f"✅ Stored {len(chunks)} chunks (using Google Embeddings API)")
 
-    def save(self, index_path: str = None, meta_path: str = None):
-        index_path = index_path or self.index_path
+    def save(self, meta_path: str = None):
         meta_path = meta_path or self.meta_path
-        if self.index is None:
-            raise RuntimeError('No index to save')
-        faiss.write_index(self.index, index_path)
         with open(meta_path, 'wb') as f:
             pickle.dump(self.chunks, f)
+        print(f"✅ Saved chunks metadata to {meta_path}")
 
-    def load(self, index_path: str = None, meta_path: str = None):
-        index_path = index_path or self.index_path
+    def load(self, meta_path: str = None):
         meta_path = meta_path or self.meta_path
-        if not os.path.exists(index_path) or not os.path.exists(meta_path):
-            raise FileNotFoundError('Index or metadata file not found')
-        self.index = faiss.read_index(index_path)
+        if not os.path.exists(meta_path):
+            raise FileNotFoundError('Metadata file not found')
         with open(meta_path, 'rb') as f:
             self.chunks = pickle.load(f)
+        print(f"✅ Loaded {len(self.chunks)} chunks")
+
+    def _get_embedding(self, text: str) -> List[float]:
+        """Get embedding using Google's API with caching"""
+        if text in self.embeddings_cache:
+            return self.embeddings_cache[text]
+        
+        result = genai.embed_content(
+            model="models/embedding-001",
+            content=text,
+            task_type="retrieval_document"
+        )
+        embedding = result['embedding']
+        self.embeddings_cache[text] = embedding
+        return embedding
+
+    def _cosine_similarity(self, a: List[float], b: List[float]) -> float:
+        """Calculate cosine similarity between two vectors"""
+        dot_product = sum(x * y for x, y in zip(a, b))
+        norm_a = sum(x * x for x in a) ** 0.5
+        norm_b = sum(x * x for x in b) ** 0.5
+        return dot_product / (norm_a * norm_b) if norm_a and norm_b else 0.0
 
     def search(self, query: str, k: int = 5):
-        q_emb = self.model.encode([query], convert_to_tensor=False)
-        q_np = np.array(q_emb, dtype='float32')
-        if self.index is None:
-            raise RuntimeError('Index not initialized')
-        D, I = self.index.search(q_np, k)
-        results = []
-        for idx in I[0]:
-            if idx < len(self.chunks):
-                results.append(self.chunks[int(idx)])
-        return results
+        """Search using Google embeddings and cosine similarity"""
+        if not self.chunks:
+            raise RuntimeError('No chunks loaded')
+        
+        # Get query embedding
+        query_result = genai.embed_content(
+            model="models/embedding-001",
+            content=query,
+            task_type="retrieval_query"
+        )
+        query_embedding = query_result['embedding']
+        
+        # Calculate similarities
+        similarities = []
+        for i, chunk in enumerate(self.chunks):
+            chunk_embedding = self._get_embedding(chunk.page_content)
+            similarity = self._cosine_similarity(query_embedding, chunk_embedding)
+            similarities.append((similarity, i, chunk))
+        
+        # Sort by similarity and return top k
+        similarities.sort(reverse=True, key=lambda x: x[0])
+        return [chunk for _, _, chunk in similarities[:k]]
