@@ -1,9 +1,14 @@
 import os
 import pickle
-from typing import List
-from langchain_core.documents import Document
+from typing import List, Dict, Any
 import google.generativeai as genai
 from dotenv import load_dotenv
+
+class Document:
+    """Simple document class to replace langchain Document"""
+    def __init__(self, page_content: str, metadata: Dict[str, Any] = None):
+        self.page_content = page_content
+        self.metadata = metadata or {}
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))

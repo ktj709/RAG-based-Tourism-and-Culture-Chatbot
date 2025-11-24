@@ -1,8 +1,13 @@
 import requests
 from bs4 import BeautifulSoup
-from langchain.docstore.document import Document
 import pdfplumber
-from typing import List
+from typing import List, Dict, Any
+
+class Document:
+    """Simple document class to replace langchain Document"""
+    def __init__(self, page_content: str, metadata: Dict[str, Any] = None):
+        self.page_content = page_content
+        self.metadata = metadata or {}
 
 def fetch_wikipedia_page(url: str) -> Document:
     headers = {
