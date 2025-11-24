@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-import pdfplumber
+from PyPDF2 import PdfReader
 from typing import List, Dict, Any
 
 class Document:
@@ -30,15 +30,15 @@ def fetch_wikipedia_page(url: str) -> Document:
 
 def load_pdf(path: str, source: str = None) -> List[Document]:
     docs = []
-    with pdfplumber.open(path) as pdf:
-        pages_text = []
-        for page in pdf.pages:
-            t = page.extract_text()
-            if t:
-                pages_text.append(t)
-        if pages_text:
-            text = "\n\n".join(pages_text)
-            docs.append(Document(page_content=text, metadata={"source": source or path, "type": "pdf"}))
+    reader = PdfReader(path)
+    pages_text = []
+    for page in reader.pages:
+        text = page.extract_text()
+        if text:
+            pages_text.append(text)
+    if pages_text:
+        full_text = "\n\n".join(pages_text)
+        docs.append(Document(page_content=full_text, metadata={"source": source or path, "type": "pdf"}))
     return docs
 
 def fetch_plain_text_url(url: str) -> Document:
